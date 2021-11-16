@@ -1,0 +1,101 @@
+Cabal-Version:      2.4
+Name:               CardanoStakingPool
+Version:            0.1.0.0
+Author:             P2P Solutions Ltd.
+Maintainer:         laurynas@adafinance.io
+Build-Type:         Simple
+
+library
+  hs-source-dirs:   src
+  exposed-modules:    MainToken
+                    , Utils.OffChain
+                    , Utils.ScriptContext
+                    , Staking
+                    , Staking.Types
+                    , Staking.OnChain
+                    , Staking.OffChain
+                    , Staking.Validator
+                    , Staking.Tokens
+                    , Staking.Business
+                    , Staking.Business.User
+                    , Staking.Business.Pool
+                    , Staking.Business.Types
+  build-depends:      aeson
+                    , base ^>= 4.14.1.0
+                    , containers
+                    , data-default
+                    , freer-extras
+                    , playground-common
+                    , plutus-contract
+                    , plutus-ledger
+                    , plutus-ledger-api
+                    , plutus-tx-plugin
+                    , plutus-tx
+                    , plutus-use-cases
+                    , prettyprinter
+                    , text
+                    , lens
+  default-language: Haskell2010
+  ghc-options:      -Wall -fobject-code -fno-ignore-interface-pragmas
+                    -fno-omit-interface-pragmas -fno-strictness
+                    -fno-spec-constr -fno-specialise -fno-warn-orphans
+
+test-suite test
+  type:             exitcode-stdio-1.0
+  hs-source-dirs:   test
+  main-is:          Main.hs
+  other-modules:      Tests.BusinessTests
+                    , Tests.TestUtils
+                    , Tests.Tests
+                    , Tests.Attacks.Claim
+                    , Tests.Attacks.Compound
+                    , Tests.Attacks.Deposit
+                    , Tests.Attacks.Feed
+                    , Tests.Attacks.Withdraw
+                    , Tests.OnChain.Claim
+                    , Tests.OnChain.Compound
+                    , Tests.OnChain.Deposit
+                    , Tests.OnChain.Feed
+                    , Tests.OnChain.Withdraw
+                    , Tests.OffChain.Claim
+                    , Tests.OffChain.Compound
+                    , Tests.OffChain.Deposit
+                    , Tests.OffChain.Feed
+                    , Tests.OffChain.Register
+                    , Tests.OffChain.Start
+                    , Tests.OffChain.Unregister
+                    , Tests.OffChain.Withdraw
+
+  default-language: Haskell2010
+  ghc-options:      -Wall -fobject-code -fno-ignore-interface-pragmas
+                        -fno-omit-interface-pragmas -fno-strictness
+                        -fno-spec-constr -fno-specialise
+  build-depends:      base ^>=4.14.1.0
+                    , aeson
+                    , ansi-terminal
+                    , containers
+                    , data-default
+                    , freer-extras
+                    , playground-common
+                    , plutus-pab
+                    , plutus-contract
+                    , plutus-ledger
+                    , plutus-ledger-api
+                    , plutus-tx-plugin
+                    , plutus-tx
+                    , plutus-use-cases
+                    , prettyprinter
+                    , text
+                    , freer-simple
+                    , lens <= 4.19.2
+                    , plutus-core
+                    , bytestring
+                    , tasty
+                    , tasty-hunit
+                    , QuickCheck
+                    , tasty-quickcheck
+                    , text
+                    , prettyprinter
+                    , strict-containers
+                    , CardanoStakingPool
+                    , foldl
