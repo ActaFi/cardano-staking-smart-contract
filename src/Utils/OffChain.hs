@@ -4,7 +4,7 @@
 {-# LANGUAGE TypeApplications  #-}
 
 {-|
-Module      : Staking.Business.Pool
+Module      : Utils.OffChain
 Description : Common off-chain functions.
 Copyright   : P2P Solutions Ltd.
 License     : GPL-3

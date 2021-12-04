@@ -7,8 +7,9 @@
 {-|
 Module      : Tests.TestUtils
 Description : Common tests utils functions.
-Copyright   : (c) 2021 IDYIA LLC dba imagine.ai
-Maintainer  : sos@imagine.ai
+Copyright   : P2P Solutions Ltd.
+License     : GPL-3
+Maintainer  : laurynas@adafinance.io
 Stability   : develop
 -}
 
@@ -55,7 +56,7 @@ emCfg = Emulator.EmulatorConfig
             }
     where
       v :: Value
-      v =    Ada.lovelaceValueOf 10_000_000
+      v =    Ada.lovelaceValueOf 10_000_000_000
           <> mainTokenValue          1_000_000_000
 
 getStaking ::
@@ -95,40 +96,39 @@ buildTest msg errs =
     failedTx _ (ScriptFailure scriptError) _ = scriptError `elem` errs
     failedTx _ _ _ = False
 
+minAda :: Integer -> Value
+minAda n = Ada.toValue (Ada.lovelaceOf n * Ledger.minAdaTxOut)
+
 wallet :: Int -> Wallet
 wallet i = knownWallets !! i
 
-p2pWallet :: Wallet
-p2pWallet = wallet 0
+adminWallet :: Wallet
+adminWallet = wallet 0
 
 user1Wallet :: Wallet
 user1Wallet = wallet 1
 
 user1WalletPKH :: PubKeyHash
-user1WalletPKH = pubKeyHash $ walletPubKey user1Wallet
+user1WalletPKH = walletPubKeyHash user1Wallet
 
 testStakingNFT :: Value
 testStakingNFT = Value.singleton testStakingNFTCS stakingNFTName 1
 
 testStakingNFTCS :: CurrencySymbol
-testStakingNFTCS = "d43f9500dbc82887d5d8bc9dd8b6b1f61e5fe9709e7109f5f6ef835a"
+testStakingNFTCS = "67bf2a8d85a4558e483d31dac0d80285fe4ca2da2cd38e718a9b344f"
 
 testUserNFT :: Value
 testUserNFT = Value.singleton testUserNFTCS userNFTName 1
 
 testUserNFTCS :: CurrencySymbol
-testUserNFTCS = "7bd2a17106dad5472a6e1aec09e7f3db705528f35e209fdfc1ca86fa"
+testUserNFTCS = "304c2b6619389f98265cee5b6bd7a5cb74a10943eaf7d4ce21413ea5"
 
 testStaking :: Staking
 testStaking = mkStaking (assetClass testStakingNFTCS stakingNFTName)
                         testStakingSettings
 
-testClaimStaking :: Staking
-testClaimStaking = mkStaking (assetClass testStakingNFTCS stakingNFTName)
-                        testStakingClaimSettings
-
 walletPKH :: Wallet -> PubKeyHash
-walletPKH w = pubKeyHash $ walletPubKey w
+walletPKH = walletPubKeyHash
 
 testRefWallet, testDaoWallet, testAffWallet :: Wallet
 testRefWallet = wallet 7
@@ -151,10 +151,5 @@ testOperationSettings = OperationSettings
     , affShare    = 300_000
     , minDeposit  = 1_000_000
     , minWithdraw = 1_000_000
-    , minClaim    = 10_000_000
-    }
-
-testStakingClaimSettings :: StakingSettings
-testStakingClaimSettings = testStakingSettings
-    { opSettings = testOperationSettings { minClaim = 1 }
+    , minClaim    = 10
     }

@@ -45,10 +45,10 @@ tests = testGroup "onChainCompoundTests"
 
 compoundAttackTrace :: EmulatorTrace ()
 compoundAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
-                                                     (MicroToken 7_777_777)
-                                                     testStakingClaimSettings
-    pool       <- getStaking hp2pWallet
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
+                                                         (MicroToken 7_777_777)
+                                                         testStakingSettings
+    pool       <- getStaking hAdminWallet
     void $ waitNSlots 2
 
     hUser     <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -69,22 +69,22 @@ compoundAttackError :: [ScriptError]
 compoundAttackError =
     [ EvaluationError
       [ "checkUserCompound: User output UTxO datum is wrong."
-      , "Pd"
+      , "PT5"
       ]
       "CekEvaluationFailure"
     , EvaluationError
       [ "checkPoolClaim: Pool ouput UTxO value is wrong."
-      , "Pd"
+      , "PT5"
       ]
       "CekEvaluationFailure"
     ]
 
 fakeCompoundAttackTrace :: EmulatorTrace ()
 fakeCompoundAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
-                                                     (MicroToken 7_777_777)
-                                                     testStakingClaimSettings
-    pool       <- getStaking hp2pWallet
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
+                                                         (MicroToken 7_777_777)
+                                                         testStakingSettings
+    pool       <- getStaking hAdminWallet
     void $ waitNSlots 2
 
     hUser     <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -105,6 +105,6 @@ fakeCompoundAttackError :: [ScriptError]
 fakeCompoundAttackError = pure $
     EvaluationError
     [ "checkUserCompound: User output UTxO datum is wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"

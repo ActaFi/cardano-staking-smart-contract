@@ -32,6 +32,7 @@ import           Data.Text                 as T (Text, pack)
 
 -- Third-party libraries libraries.
 import           Ledger                    hiding (singleton)
+import qualified Ledger.Ada                       as Ada
 import           Ledger.Constraints        as Constraints
 import           Ledger.Value              as Value
 import           Plutus.Contract           as Contract
@@ -103,22 +104,24 @@ start
     -> StakingSettings
     -> Contract (Last Staking) s Text Staking
 start am sett = do
-    ownPKH   <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH   <- Contract.ownPubKeyHash
     nftCS    <- Currency.currencySymbol <$> forgeNFT ownPKH stakingNFTName
 
     let stakingAC   = assetClass nftCS stakingNFTName
         staking     = Staking { nft = stakingAC, settings  = sett }
         valNFT      = assetClassValue stakingAC 1
         val         = mainTokenValue $ getMicroToken am
+        minAda      = Ada.toValue Ledger.minAdaTxOut
 
         lookupsInit =
                Constraints.typedValidatorLookups (typedValidatorStaking staking)
             <> Constraints.otherScript (validatorStaking staking)
-        tx          =
-            Constraints.mustPayToTheScript (mkPoolDatum []) $ val <> valNFT
+        tx          = Constraints.mustPayToTheScript (mkPoolDatum []) $ val
+                                                                     <> valNFT
+                                                                     <> minAda
 
     submittedTx <- submitTxConstraintsWith lookupsInit tx
-    void $ awaitTxConfirmed $ txId submittedTx
+    void $ awaitTxConfirmed $ getCardanoTxId submittedTx
     logInfo @String $ unwords
         ["Staking pool has been created. Identifying NFT:"
         , show staking
@@ -142,7 +145,7 @@ feed staking am
                 <> Constraints.mustPayToTheScript newDat newVal
 
         submittedTx <- submitTxConstraintsWith lookups tx
-        void $ awaitTxConfirmed $ txId submittedTx
+        void $ awaitTxConfirmed $ getCardanoTxId submittedTx
         logInfo @String $ unwords
             [ "Staking fed with", show am, "micro MyToken tokens." ]
     | otherwise = logInfo @String
@@ -152,7 +155,7 @@ register :: Staking -> Contract w s Text ()
 register staking = do
     (orefStaking, oStaking) <- findStaking staking
     activeUsers             <- getPoolState oStaking
-    ownPKH                  <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH                  <- Contract.ownPubKeyHash
     userNFTCS               <- Currency.currencySymbol <$>
                                forgeNFT ownPKH userNFTName
 
@@ -161,15 +164,17 @@ register staking = do
         stakingVal = getChainIndexTxOutValue oStaking
         userState  = mkUserDatum ownPKH [] Nothing
         userVal    = assetClassValue (assetClass userNFTCS userNFTName) 1
+        userMinAda = Ada.toValue Ledger.minAdaTxOut
 
         red        = registerRedeemer ownPKH userNFT
         lookups    = mkLookups staking [(orefStaking, oStaking)]
         tx         = Constraints.mustSpendScriptOutput orefStaking red
                   <> Constraints.mustPayToTheScript stakingDat stakingVal
-                  <> Constraints.mustPayToTheScript userState userVal
+                  <> Constraints.mustPayToTheScript userState
+                                                    (userVal <> userMinAda)
 
     submittedTx <- submitTxConstraintsWith lookups tx
-    void $ awaitTxConfirmed $ txId submittedTx
+    void $ awaitTxConfirmed $ getCardanoTxId submittedTx
     logInfo @String $ unwords [ "User with public key hash"
                               , show ownPKH
                               , "has been registered to the staking pool."
@@ -177,7 +182,7 @@ register staking = do
 
 unregister :: Staking -> Contract w s Text ()
 unregister staking = do
-    ownPKH                  <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH                  <- Contract.ownPubKeyHash
     (orefStaking, oStaking) <- findStaking staking
     (orefUser, oUser)       <- findUserUTxO staking ownPKH
     activeUsers             <- getPoolState oStaking
@@ -185,14 +190,17 @@ unregister staking = do
 
     if not $ ownPKH `Business.isRegistered` activeUsers
     then logInfo @String "User is not currently registered."
-    else if getChainIndexTxOutValue oUser /= assetClassValue userNFT 1
+    else if getChainIndexTxOutValue oUser /= (assetClassValue userNFT 1
+                                           <> Ada.toValue Ledger.minAdaTxOut)
     then logInfo @String
         $ "User must remove all assets in the script before unregistering."
     else do
         let newStakingDat = PoolDatum $ Business.unregister activeUsers ownPKH
             newStakingVal = getChainIndexTxOutValue oStaking
             oldUserVal    = getChainIndexTxOutValue oUser
+            minusMinAda   = Ada.toValue (-Ledger.minAdaTxOut)
             newUserVal    = oldUserVal <> assetClassValue userNFT (-1)
+                                       <> minusMinAda
 
             red           = unregisterRedeemer ownPKH
             lookups       = mkLookups staking [ (orefStaking, oStaking)
@@ -205,7 +213,7 @@ unregister staking = do
                 <> Constraints.mustPayToPubKey ownPKH newUserVal
 
         submittedTx <- submitTxConstraintsWith lookups tx
-        void $ awaitTxConfirmed $ txId submittedTx
+        void $ awaitTxConfirmed $ getCardanoTxId submittedTx
         logInfo @String $ unwords
             [ "User with public key hash"
             , show ownPKH
@@ -215,7 +223,7 @@ unregister staking = do
 deposit :: Staking -> MainToken -> Contract w s Text ()
 deposit staking@Staking{..} am = do
     cTime             <- currentTime
-    ownPKH            <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH            <- Contract.ownPubKeyHash
     (orefUser, oUser) <- findUserUTxO staking ownPKH
     oldUserState      <- getUserState oUser
 
@@ -235,6 +243,7 @@ deposit staking@Staking{..} am = do
                 deposited    = getMicroToken am - totalFees
                 newUserVal   = oldUserVal <> mainTokenValue deposited
                 newUserDatum = UserDatum newUserState
+                minAda       = Ada.toValue Ledger.minAdaTxOut
 
                 range        = interval cTime (cTime + Business.validTimeRange)
                 red          = depositRedeemer am cTime
@@ -245,14 +254,14 @@ deposit staking@Staking{..} am = do
                    <> Constraints.mustPayToTheScript newUserDatum newUserVal
                    <> Constraints.mustValidateIn range
                    <> Constraints.mustPayToPubKey
-                                (refWallet settings) (mainTokenValue refFees)
+                        (refWallet settings) (mainTokenValue refFees <> minAda)
                    <> Constraints.mustPayToPubKey
-                                (daoWallet settings) (mainTokenValue dFees)
+                        (daoWallet settings) (mainTokenValue dFees <> minAda)
                    <> Constraints.mustPayToPubKey
-                                (affWallet settings) (mainTokenValue aFees)
+                        (affWallet settings) (mainTokenValue aFees <> minAda)
 
             submittedTx <- submitTxConstraintsWith lookups tx
-            void $ awaitTxConfirmed $ txId submittedTx
+            void $ awaitTxConfirmed $ getCardanoTxId submittedTx
             logInfo @String $ unwords
                 [ "User deposited", show am, "micro MyToken to their"
                 , "script UTxO, and paid", show totalFees
@@ -262,7 +271,7 @@ deposit staking@Staking{..} am = do
 withdraw :: Staking -> MainToken -> Contract w s Text ()
 withdraw staking@Staking{..} am = do
     cTime             <- currentTime
-    ownPKH            <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH            <- Contract.ownPubKeyHash
     (orefUser, oUser) <- findUserUTxO staking ownPKH
     oldUserState      <- getUserState oUser
 
@@ -276,9 +285,11 @@ withdraw staking@Staking{..} am = do
                 dFees   = Business.daoFees feesW
                 aFees   = Business.affFees feesW
 
-                oldUserVal                  = getChainIndexTxOutValue oUser
+                oldUserVal   = getChainIndexTxOutValue oUser
                 newUserVal   = oldUserVal <> mainTokenValue (- getMicroToken am)
                 newUserDatum = UserDatum newUserState
+                minAda       = Ada.toValue Ledger.minAdaTxOut
+
                 range        = interval cTime (cTime + Business.validTimeRange)
                 red          = withdrawRedeemer am cTime
 
@@ -288,14 +299,16 @@ withdraw staking@Staking{..} am = do
                    <> Constraints.mustPayToTheScript newUserDatum newUserVal
                    <> Constraints.mustValidateIn range
                    <> Constraints.mustPayToPubKey
-                                (refWallet settings) (mainTokenValue refFees)
+                       (refWallet settings) (mainTokenValue refFees <> minAda)
                    <> Constraints.mustPayToPubKey
-                                (daoWallet settings) (mainTokenValue dFees)
+                       (daoWallet settings) (mainTokenValue dFees <> minAda)
                    <> Constraints.mustPayToPubKey
-                                (affWallet settings) (mainTokenValue aFees)
+                       (affWallet settings) (mainTokenValue aFees <> minAda)
+                   <> Constraints.mustPayToPubKey
+                        ownPKH (mainTokenValue (getMicroToken am) <> minAda)
 
             submittedTx <- submitTxConstraintsWith lookups tx
-            void $ awaitTxConfirmed $ txId submittedTx
+            void $ awaitTxConfirmed $ getCardanoTxId submittedTx
             logInfo @String $ unwords
                 [ "User withdraw", show am
                 , "micro MyToken from their script UTxO, and paid"
@@ -306,7 +319,7 @@ withdraw staking@Staking{..} am = do
 claim :: Staking -> Contract w s Text ()
 claim staking@Staking{..} = do
     cTime                   <- currentTime
-    ownPKH                  <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH                  <- Contract.ownPubKeyHash
     (orefStaking, oStaking) <- findStaking staking
     activeUsers             <- getPoolState oStaking
     (orefUser, oUser)       <- findUserUTxO staking ownPKH
@@ -324,6 +337,7 @@ claim staking@Staking{..} = do
                 newStakingDat = PoolDatum activeUsers
                 newUserDatum  = UserDatum newUserState
                 newUserVal    = getChainIndexTxOutValue oUser
+                minAda        = Ada.toValue Ledger.minAdaTxOut
 
                 range         = interval cTime (cTime + Business.validTimeRange)
                 red           = claimRedeemer
@@ -339,10 +353,11 @@ claim staking@Staking{..} = do
                    <> Constraints.mustPayToTheScript newStakingDat newStakingVal
                    <> Constraints.mustPayToTheScript newUserDatum newUserVal
                    <> Constraints.mustValidateIn range
-                   <> Constraints.mustPayToPubKey ownPKH (mainTokenValue rews)
+                   <> Constraints.mustPayToPubKey
+                        ownPKH (mainTokenValue rews <> minAda)
 
             submittedTx <- submitTxConstraintsWith lookups tx
-            void $ awaitTxConfirmed $ txId submittedTx
+            void $ awaitTxConfirmed $ getCardanoTxId submittedTx
             logInfo @String $ unwords
                 [ "User has claimed their rewards ("
                 , show rews
@@ -352,7 +367,7 @@ claim staking@Staking{..} = do
 compound :: Staking -> Contract w s Text ()
 compound staking@Staking{..} = do
     cTime                   <- currentTime
-    ownPKH                  <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH                  <- Contract.ownPubKeyHash
     (orefStaking, oStaking) <- findStaking staking
     (orefUser, oUser)       <- findUserUTxO staking ownPKH
     activeUsers             <- getPoolState oStaking
@@ -389,7 +404,7 @@ compound staking@Staking{..} = do
                    <> Constraints.mustValidateIn range
 
             submittedTx <- submitTxConstraintsWith lookups tx
-            void $ awaitTxConfirmed $ txId submittedTx
+            void $ awaitTxConfirmed $ getCardanoTxId submittedTx
             logInfo @String $ unwords
                 [ "User has compounded their rewards ("
                 , show rews

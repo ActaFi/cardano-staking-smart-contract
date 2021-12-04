@@ -15,6 +15,7 @@ module Staking.OnChain (mkValidatorStaking) where
 
 -- Third-party libraries.
 import Ledger
+import Ledger.Ada      as Ada
 import Ledger.Value
 import PlutusTx.Prelude
 
@@ -70,7 +71,7 @@ validateFeed
     -> MainToken
     -> ScriptContext
     -> Bool
-validateFeed ac staking pstate am ctx =     
+validateFeed ac staking pstate am ctx =
        traceIfFalse
             "checkPoolFeed: NFT missing from the input UTxO."
             (inputHasNFT (nft staking) ctx)
@@ -121,7 +122,7 @@ validatePoolRegister
     -> AssetClass
     -> ScriptContext
     -> Bool
-validatePoolRegister staking inputPoolState pkh userNFT ctx =    
+validatePoolRegister staking inputPoolState pkh userNFT ctx =
        traceIfFalse
             "checkPoolRegister: Transaction not signed by the right user."
             signedByRightUser
@@ -347,7 +348,7 @@ validateWithdraw
     -> POSIXTime
     -> ScriptContext
     -> Bool
-validateWithdraw ac staking@Staking{..} inputUserState am time ctx =    
+validateWithdraw ac staking@Staking{..} inputUserState am time ctx =
        traceIfFalse
             "checkUserWithdraw: Transaction not signed by the right user."
             signedByRightUser
@@ -682,15 +683,18 @@ checkFeesDistribution ac Staking{..} refFees daoFees affFees ctx =
        traceIfFalse
             "checkFeesDistribution: Incentives pool fees are wrong."
             (valuePaidTo (scriptContextTxInfo ctx) (refWallet settings)
-                == assetClassValue ac refFees)
+                == assetClassValue ac refFees <> minAda)
     && traceIfFalse
             "checkFeesDistribution: DAO fees are wrong."
             (valuePaidTo (scriptContextTxInfo ctx) (daoWallet settings)
-                == assetClassValue ac daoFees)
+                == assetClassValue ac daoFees <> minAda)
     && traceIfFalse
             "checkFeesDistribution: Affiliates fees are wrong."
             (valuePaidTo (scriptContextTxInfo ctx) (affWallet settings)
-                == assetClassValue ac affFees)
+                == assetClassValue ac affFees <> minAda)
+  where
+    minAda :: Value
+    minAda = Ada.toValue Ledger.minAdaTxOut
 
 {-# INLINABLE checkPoolIsSpent #-}
 checkPoolIsSpent :: ScriptContext -> AssetClass -> Bool
@@ -717,10 +721,10 @@ checkTimeRange ctx time =
     checkIntervalSize timeRange Business.validTimeRange
     -- XXX: +1 because timeRange lower closure may be False
     && (time + 1) `member` timeRange
-    
+
   where timeRange :: Interval POSIXTime
         timeRange = txInfoValidRange (scriptContextTxInfo ctx)
-        
+
         checkIntervalSize :: Interval POSIXTime -> POSIXTime -> Bool
         checkIntervalSize iv len =
             case getIvFrom iv of

@@ -51,10 +51,10 @@ tests = testGroup "onChainWithdrawTests"
 
 withdrawAttackTrace :: EmulatorTrace ()
 withdrawAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
                                                      (MicroToken 9_999_999)
                                                      testStakingSettings
-    pool <- getStaking hp2pWallet
+    pool <- getStaking hAdminWallet
     void $ Emulator.waitNSlots 2
 
     hUser     <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -76,16 +76,16 @@ withdrawAttackError :: [ScriptError]
 withdrawAttackError = pure $
     EvaluationError
     [ "checkUserWithdraw: Output value is wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"
 
 fakeWithdrawAttackTrace :: EmulatorTrace ()
 fakeWithdrawAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
                                                      (MicroToken 9_999_999)
                                                      testStakingSettings
-    pool <- getStaking hp2pWallet
+    pool <- getStaking hAdminWallet
     void $ Emulator.waitNSlots 2
 
     hUser     <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -107,16 +107,16 @@ fakeWithdrawAttackError :: [ScriptError]
 fakeWithdrawAttackError = pure $
     EvaluationError
     [ "checkUserWithdraw: Datum is wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"
 
 withdrawWithoutFeesAttackTrace :: EmulatorTrace ()
 withdrawWithoutFeesAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
                                                      (MicroToken 9_999_999)
                                                      testStakingSettings
-    pool <- getStaking hp2pWallet
+    pool <- getStaking hAdminWallet
     void $ Emulator.waitNSlots 2
 
     hUser     <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -137,6 +137,6 @@ withdrawWithoutFeesAttackError :: [ScriptError]
 withdrawWithoutFeesAttackError = pure $
     EvaluationError
     [ "checkFeesDistribution: Incentives pool fees are wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"

@@ -43,10 +43,10 @@ tests = testGroup "onChainClaimTests"
 
 claimAttackTrace :: EmulatorTrace ()
 claimAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
-                                                     (MicroToken 9_999_999)
-                                                     testStakingClaimSettings
-    pool <- getStaking hp2pWallet
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
+                                                         (MicroToken 9_999_999)
+                                                         testStakingSettings
+    pool <- getStaking hAdminWallet
     void $ Emulator.waitNSlots 2
 
     hUser     <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -67,6 +67,6 @@ claimAttackError :: [ScriptError]
 claimAttackError = pure $
     EvaluationError
     [ "checkPoolClaim: Pool ouput UTxO value is wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"

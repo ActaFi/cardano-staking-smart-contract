@@ -43,21 +43,21 @@ tests = testGroup "onChainFeedTests"
 
 feedAttackTrace :: EmulatorTrace ()
 feedAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
-                                                     (MicroToken 9_999_999)
-                                                     testStakingSettings
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
+                                                         (MicroToken 9_999_999)
+                                                         testStakingSettings
     void $ Emulator.waitNSlots 2
-    staking <- getStaking hp2pWallet
+    staking <- getStaking hAdminWallet
 
-    hAttack <- activateContractWallet p2pWallet $ attackStakingEndpoints staking
+    hAttack <- activateContractWallet adminWallet $ attackStakingEndpoints staking
 
-    callEndpoint @"feedNegativeAttack" hAttack (MicroToken (-2_222_222))
+    callEndpoint @"feedNegativeAttack" hAttack (MicroToken 2_222_222)
     void $ Emulator.waitNSlots 1
 
 feedAttackError :: [ScriptError]
 feedAttackError = pure $
     EvaluationError
     [ "checkPoolFeed: Output value is wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"

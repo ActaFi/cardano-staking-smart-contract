@@ -22,6 +22,7 @@ import qualified Tests.OffChain.Register
 import qualified Tests.OffChain.Start
 import qualified Tests.OffChain.Unregister
 import qualified Tests.OffChain.Withdraw
+--import qualified Tests.OffChain.UseCaseTests
 import qualified Tests.OnChain.Claim
 import qualified Tests.OnChain.Compound
 import qualified Tests.OnChain.Deposit
@@ -39,6 +40,7 @@ tests = testGroup "all"
         , Tests.OffChain.Start.tests
         , Tests.OffChain.Unregister.tests
         , Tests.OffChain.Withdraw.tests
+      --  , Tests.OffChain.UseCaseTests.tests
         , Tests.OnChain.Claim.tests
         , Tests.OnChain.Compound.tests
         , Tests.OnChain.Deposit.tests

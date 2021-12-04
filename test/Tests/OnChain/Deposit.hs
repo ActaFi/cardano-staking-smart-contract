@@ -51,10 +51,10 @@ tests = testGroup "onChainDepositTests"
 
 depositAttackTrace :: EmulatorTrace ()
 depositAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
-                                                     (MicroToken 9_999_999)
-                                                     testStakingSettings
-    pool <- getStaking hp2pWallet
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
+                                                         (MicroToken 9_999_999)
+                                                         testStakingSettings
+    pool <- getStaking hAdminWallet
     void $ Emulator.waitNSlots 2
 
     hRegister <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -74,16 +74,16 @@ depositAttackError :: [ScriptError]
 depositAttackError = pure $
     EvaluationError
     [ "checkUserDeposit: Amount to deposit does not reach minimum."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"
 
 depositEmptyListAttackTrace :: EmulatorTrace ()
 depositEmptyListAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
-                                                     (MicroToken 9_999_999)
-                                                     testStakingSettings
-    pool <- getStaking hp2pWallet
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
+                                                         (MicroToken 9_999_999)
+                                                         testStakingSettings
+    pool <- getStaking hAdminWallet
     void $ Emulator.waitNSlots 2
 
     hRegister <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -102,16 +102,16 @@ depositEmptyListAttackError :: [ScriptError]
 depositEmptyListAttackError = pure $
     EvaluationError
     [ "checkUserDeposit: Datum is wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"
 
 depositWithoutFeesAttackTrace :: EmulatorTrace ()
 depositWithoutFeesAttackTrace = do
-    hp2pWallet <- activateContractWallet p2pWallet $ runStaking
-                                                     (MicroToken 9_999_999)
-                                                     testStakingSettings
-    pool <- getStaking hp2pWallet
+    hAdminWallet <- activateContractWallet adminWallet $ runStaking
+                                                         (MicroToken 9_999_999)
+                                                         testStakingSettings
+    pool <- getStaking hAdminWallet
     void $ Emulator.waitNSlots 2
 
     hRegister <- activateContractWallet user1Wallet $ userEndpoints pool
@@ -129,6 +129,6 @@ depositWithoutFeesAttackError :: [ScriptError]
 depositWithoutFeesAttackError = pure $
     EvaluationError
     [ "checkUserDeposit: Output value is wrong."
-    , "Pd"
+    , "PT5"
     ]
     "CekEvaluationFailure"

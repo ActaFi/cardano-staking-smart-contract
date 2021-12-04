@@ -2,12 +2,14 @@
 {-# LANGUAGE OverloadedStrings     #-}
 
 {-|
-Module      : Staking.Business.Pool
+Module      : Utils.ScriptContext
 Description : Useful functions about script contexts.
 Copyright   : P2P Solutions Ltd.
 License     : GPL-3
 Maintainer  : laurynas@adafinance.io
 Stability   : develop
+
+Common functions for manipulating script context.
 -}
 
 module Utils.ScriptContext where

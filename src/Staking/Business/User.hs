@@ -12,7 +12,17 @@ Maintainer  : laurynas@adafinance.io
 Stability   : develop
 -}
 
-module Staking.Business.User where
+module Staking.Business.User
+  ( claim
+  , compound
+  , deposit
+  , withdraw
+  , depositFees
+  , withdrawFees
+  , isAfter
+  , days
+  , depositLevel
+  , computeRewards) where
 
 -- Third-party libraries.
 import Ledger

@@ -21,10 +21,8 @@ module Tests.Attacks.Deposit
     ) where
 
 import           Control.Monad
-import qualified Data.Map                  as Map
 import           Data.Monoid               (Last (..))
-import           Data.Text                 as T ( Text
-                                                )
+import           Data.Text                 as T (Text)
 
 -- Third-party libraries libraries.
 import           Ledger                    hiding (singleton)
@@ -33,9 +31,12 @@ import           Plutus.Contract           as Contract
 import           PlutusTx
 
 -- Internal modules.
-import           Staking
 import           MainToken
+import           Staking.Business
+import           Staking.Types
 import           Utils.OffChain
+import           Tests.Attacks.AttackUtils
+import           Tests.TestUtils
 
 -- Schema.
 type AttackSchema =
@@ -68,7 +69,7 @@ attackUserEndpoints staking = forever
 depositNegativeAttack :: forall w s. Staking -> MainToken -> Contract w s Text ()
 depositNegativeAttack staking@Staking{..} am@(MicroToken amount) = do
     cTime             <- currentTime
-    ownPKH            <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH            <- Contract.ownPubKeyHash
     (orefUser, oUser) <- findUserUTxO staking ownPKH
     oldUserState      <- getUserState oUser
 
@@ -97,14 +98,14 @@ depositNegativeAttack staking@Staking{..} am@(MicroToken amount) = do
                    <> Constraints.mustPayToTheScript newUserDatum newUserVal
                    <> Constraints.mustValidateIn range
                    <> Constraints.mustPayToPubKey
-                                (refWallet settings) (mainTokenValue refFees)
+                      (refWallet settings) (mainTokenValue refFees <> minAda 1)
                    <> Constraints.mustPayToPubKey
-                                (daoWallet settings) (mainTokenValue dFees)
+                      (daoWallet settings) (mainTokenValue dFees <> minAda 1)
                    <> Constraints.mustPayToPubKey
-                                (affWallet settings) (mainTokenValue aFees)
+                      (affWallet settings) (mainTokenValue aFees <> minAda 1)
 
             submittedTx <- submitTxConstraintsWith lookups tx
-            void $ awaitTxConfirmed $ txId submittedTx
+            void $ awaitTxConfirmed $ getCardanoTxId submittedTx
             logInfo @String $ "User deposited " ++ show (MicroToken (-amount)) ++
                               " micro MyToken to their " ++
                               "script UTxO, and paid " ++ show totalFees ++
@@ -116,7 +117,7 @@ depositEmptyListAttack
     -> Contract w s Text ()
 depositEmptyListAttack staking@Staking{..} am = do
     cTime             <- currentTime
-    ownPKH            <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH            <- Contract.ownPubKeyHash
     (orefUser, oUser) <- findUserUTxO staking ownPKH
     oldUserState      <- getUserState oUser
 
@@ -146,14 +147,14 @@ depositEmptyListAttack staking@Staking{..} am = do
                    <> Constraints.mustPayToTheScript newUserDatum newUserVal
                    <> Constraints.mustValidateIn range
                    <> Constraints.mustPayToPubKey
-                                (refWallet settings) (mainTokenValue refFees)
+                      (refWallet settings) (mainTokenValue refFees <> minAda 1)
                    <> Constraints.mustPayToPubKey
-                                (daoWallet settings) (mainTokenValue dFees)
+                      (daoWallet settings) (mainTokenValue dFees <> minAda 1)
                    <> Constraints.mustPayToPubKey
-                                (affWallet settings) (mainTokenValue aFees)
+                      (affWallet settings) (mainTokenValue aFees <> minAda 1)
 
             submittedTx <- submitTxConstraintsWith lookups tx
-            void $ awaitTxConfirmed $ txId submittedTx
+            void $ awaitTxConfirmed $ getCardanoTxId submittedTx
             logInfo @String $ "User had their script UTxO deposits emptied"
 
 depositWithoutFeesAttack
@@ -162,7 +163,7 @@ depositWithoutFeesAttack
   -> Contract w s Text ()
 depositWithoutFeesAttack staking@Staking{..} am = do
     cTime             <- currentTime
-    ownPKH            <- pubKeyHash <$> Contract.ownPubKey
+    ownPKH            <- Contract.ownPubKeyHash
     (orefUser, oUser) <- findUserUTxO staking ownPKH
     oldUserState      <- getUserState oUser
 
@@ -187,50 +188,6 @@ depositWithoutFeesAttack staking@Staking{..} am = do
                    <> Constraints.mustValidateIn range
 
             submittedTx <- submitTxConstraintsWith lookups tx
-            void $ awaitTxConfirmed $ txId submittedTx
+            void $ awaitTxConfirmed $ getCardanoTxId submittedTx
             logInfo @String $ "User deposited " ++ show am ++ " micro " ++
                               "MyToken to their script UTxO without fees."
-
--- Helper functions.
-mkLookups ::
-       Staking
-    -> [(TxOutRef, ChainIndexTxOut)]
-    -> ScriptLookups StakingType
-mkLookups p utxos =
-       Constraints.typedValidatorLookups (typedValidatorStaking p)
-    <> Constraints.otherScript (validatorStaking p)
-    <> Constraints.unspentOutputs (Map.fromList utxos)
-
--- | Monadic function for getting the UserState from a user script UTxO.
-getUserState :: forall w s. ChainIndexTxOut -> Contract w s T.Text UserState
-getUserState o = case getChainIndexTxOutDatum o of
-    Just dat -> case dat of
-        PoolDatum _   ->
-            throwError "Expected UserDatum but found StakingDatum."
-        UserDatum res -> return res
-    Nothing  -> throwError "Cannot find contract datum."
-
-{- | Monadic function returning the user script UTxO corresponding to the
-     PubKeyHash. -}
-findUserUTxO :: forall w s.
-       Staking
-    -> PubKeyHash
-    -> Contract w s Text (TxOutRef, ChainIndexTxOut)
-findUserUTxO staking pkh = do
-    (_, oStaking) <- findStaking staking
-    dat           <- getContractDatum oStaking
-    case dat of
-        UserDatum _             -> throwError
-            "Expected StakingDatum but found UserDatum in staking script UTxO."
-        PoolDatum ps ->
-            case getUserNFT ps pkh of
-                Just userNFT -> lookupScriptUTxO
-                                    (addressStaking staking)
-                                    userNFT
-                _            -> throwError "Could not find user NFT."
-
--- | Monadic function for getting the datum from a ChainIndexTxOut.
-getContractDatum :: ChainIndexTxOut -> Contract w s T.Text StakingDatum
-getContractDatum =
-    maybe (throwError "Cannot find contract datum") return .
-          getChainIndexTxOutDatum

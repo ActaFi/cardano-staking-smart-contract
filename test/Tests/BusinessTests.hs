@@ -243,7 +243,7 @@ businessClaimTest = testGroup "businessClaimTest"
           "Testing claim a reward lower than the minClaim" $
           let
             uState = uStateTest { deposits = [(days 0, 100_000_000)] }
-            now    = days 90
+            now    = 21023 :: Ledger.POSIXTime
           in
           claim uState now testOperationSettings @?= Nothing
 
@@ -315,7 +315,7 @@ businessCompoundTest = testGroup "businessCompoundTest"
           "Testing compound a reward lower than the minClaim" $
           let
             uState = uStateTest { deposits = [(days 0, 100_000_000)] }
-            now    = days 90
+            now    = 21023 :: Ledger.POSIXTime
           in
             compound uState now testOperationSettings @?= Nothing
 
